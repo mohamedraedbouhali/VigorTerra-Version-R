@@ -1,0 +1,115 @@
+/* Nature-inspired palette */
+:root {
+  --bg: #eef5f0;
+  --surface: #ffffff;
+  --surface-hover: #f3f9f5;
+  --surface-light: #f7fcf8;
+
+  --green-deep: #1f5e3b;
+  --green-mid: #2f7b4b;
+  --green-light: #46a068;
+  --green-vibrant: #58b87a;
+  --green-pale: #1d4d33;
+  --green-glow: #6fd492;
+  --green-rgb: 88, 184, 122;
+
+  --accent-sky: #8cbecb;
+  --accent-teal: #4f9f8f;
+  --accent-blue: #729eb8;
+
+  --earth: #b98764;
+  --earth-light: #dcc0a3;
+  --sun: #dfb775;
+  --accent-orange: #cd8d62;
+  --accent-purple: #8e79aa;
+  --accent-pink: #c88ea0;
+
+  --text: #163424;
+  --text-muted: #4f6c5c;
+  --text-dim: #748a7c;
+
+  --border: #d6e5db;
+  --border-light: #c6dacd;
+  --border-glow: #58b87a;
+
+  --shadow-sm: 0 4px 14px rgba(23, 56, 38, 0.08);
+  --shadow-md: 0 8px 24px rgba(23, 56, 38, 0.12);
+  --shadow-lg: 0 14px 40px rgba(23, 56, 38, 0.16);
+  --shadow-xl: 0 24px 56px rgba(23, 56, 38, 0.18);
+  --shadow-glow: 0 0 28px rgba(var(--green-rgb), 0.2);
+  --shadow-nature: 0 10px 34px rgba(27, 92, 58, 0.16);
+
+  --radius: 14px;
+  --radius-sm: 10px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-full: 9999px;
+
+  --font: 'Outfit', system-ui, sans-serif;
+  --transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-soft: cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.65;
+  min-height: 100vh;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background:
+    radial-gradient(ellipse 120% 80% at 50% -15%, rgba(var(--green-rgb), 0.14) 0%, transparent 52%),
+    radial-gradient(ellipse 80% 55% at 95% 85%, rgba(140, 190, 203, 0.18) 0%, transparent 44%),
+    radial-gradient(ellipse 75% 50% at 5% 85%, rgba(88, 184, 122, 0.12) 0%, transparent 45%),
+    linear-gradient(180deg, #f4faf6 0%, var(--bg) 44%, #e5f0e8 100%);
+  position: relative;
+}
+
+/* Subtle grain overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.02'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Soft “light through leaves” orbs */
+body::after {
+  content: '';
+  position: fixed;
+  top: -20%;
+  left: -10%;
+  width: 50%;
+  height: 50%;
+  background: radial-gradient(circle, rgba(var(--green-rgb), 0.1) 0%, transparent 70%);
+  filter: blur(60px);
+  pointer-events: none;
+  z-index: 0;
+  animation: orbFloat 18s ease-in-out infinite;
+}
+
+@keyframes orbFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(5%, 10%) scale(1.05); }
+  66% { transform: translate(-5%, -5%) scale(0.98); }
+}
+
+#root {
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+body.rtl {
+  font-family: 'Cairo', var(--font);
+}

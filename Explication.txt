@@ -1,0 +1,419 @@
+================================================================================
+                        PROJET VIGORTERRA — EXPLICATION COMPLÈTE
+================================================================================
+
+TITRE DU PROJET :
+  Prédiction du Rendement Agricole à partir des Conditions Climatiques et du Sol
+  en Tunisie
+
+AUTEURS / CONTEXTE :
+  Projet académique d'analyse de données et de modélisation prédictive,
+  orienté vers l'agriculture tunisienne et méditerranéenne.
+
+================================================================================
+1. OBJECTIF GÉNÉRAL
+================================================================================
+
+VigorTerra est un système intelligent de prédiction du rendement agricole
+(en tonnes par hectare — t/ha) pour la Tunisie. Il combine :
+
+  - Des données climatiques réelles (températures, précipitations, humidité)
+  - Des données pédologiques (pH du sol, azote, phosphore, potassium)
+  - Des données de production agricole (FAO, portail Agridata tunisien)
+  - Des modèles de prédiction inspirés du Machine Learning
+  - Une interface API REST accessible depuis une application web ou mobile
+
+Le but est d'aider les agriculteurs, chercheurs et décideurs à estimer
+le rendement d'une culture en fonction des conditions environnementales,
+et à détecter les anomalies avant qu'elles n'affectent la récolte.
+
+================================================================================
+2. ARCHITECTURE DU PROJET
+================================================================================
+
+Le projet est organisé en trois grandes parties :
+
+  A) COLLECTE ET PRÉPARATION DES DONNÉES
+     Dossier : agriculture_scraping/ (Python) → R/scraping/ + R/preprocessing/ (R)
+
+  B) API DE PRÉDICTION (Backend)
+     Dossier : app/ (Python/FastAPI) → R/api.R + R/run.R (R/Plumber)
+
+  C) ANALYSE STATISTIQUE AVANCÉE
+     Fichier : R/mini_projet_analyse_multivariee.R
+
+================================================================================
+3. SOURCES DE DONNÉES UTILISÉES
+================================================================================
+
+  3.1 FAOSTAT (Organisation des Nations Unies pour l'Alimentation)
+      - Source officielle mondiale de statistiques agricoles
+      - Données pour la Tunisie (code pays 222) : rendement (hg/ha converti
+        en t/ha), production (tonnes), surface récoltée (hectares)
+      - Téléchargement automatique du fichier ZIP normalisé FAO
+      - Couvre des dizaines de cultures : blé, orge, olives, tomates, etc.
+
+  3.2 Open-Meteo (API météo historique gratuite)
+      - Données journalières pour 7 villes tunisiennes :
+        Tunis, Sfax, Sousse, Kairouan, Bizerte, Gabès, Béja
+      - Variables collectées : température max/min/moyenne (°C),
+        précipitations cumulées (mm), humidité relative (%)
+      - Période : 2015 à aujourd'hui
+      - Agrégation en données annuelles pour fusion avec FAOSTAT
+
+  3.3 Agridata.tn (Portail CKAN du gouvernement tunisien)
+      - Données pluviométriques journalières observées
+      - Données de production végétale nationale
+      - Évolution des céréales (1980–2022)
+      - Accès via l'API CKAN et scraping HTML si nécessaire
+
+  3.4 INM — Institut National de la Météorologie (meteo.tn)
+      - Complément de données climatiques officielles tunisiennes
+      - Extraction des tableaux HTML du site et des liens de données
+
+  3.5 Données pédologiques synthétiques (Sol)
+      - Les données réelles de sol (pH, N, P, K) par parcelle sont rares
+        en open data pour la Tunisie
+      - Génération de valeurs réalistes pour 13 gouvernorats :
+        Tunis, Bizerte, Béja, Jendouba, Nabeul, Sousse, Sfax, Kairouan,
+        Le Kef, Gabès, Médenine, Tozeur, Kébili
+      - Basées sur les plages typiques des sols méditerranéens par région
+        (Nord, Centre, Sud)
+      - À remplacer par de vraies données de terrain si disponibles
+
+================================================================================
+4. FUSION DES DONNÉES (Pipeline ML)
+================================================================================
+
+Le script data_merger (Python) / data_merger.R (R) fusionne toutes les sources
+en un seul fichier CSV prêt pour le Machine Learning :
+
+  Fichier de sortie : dataset_ml_rendement_tunisie.csv
+
+  Colonnes du dataset final :
+    - annee              : Année de la donnée
+    - item               : Culture agricole (blé, orge, olive, etc.)
+    - rendement_tonnes_ha: Rendement (variable cible, en t/ha)
+    - surface_cultivee_ha: Surface récoltée (hectares)
+    - production_tonnes  : Production totale (tonnes)
+    - pluviometrie_mm    : Précipitations annuelles (mm)
+    - temperature_moyenne_c : Température moyenne annuelle (°C)
+    - humidite_pct       : Humidité relative moyenne (%)
+    - ph                 : pH du sol (0–14)
+    - azote_N            : Teneur en azote (% massique)
+    - phosphore_P_mg_kg  : Phosphore disponible (mg/kg)
+    - potassium_K_mg_kg  : Potassium disponible (mg/kg)
+
+  Logique de fusion :
+    - Base : rendements FAOSTAT (une ligne par année × culture)
+    - Jointure gauche avec le climat Open-Meteo (par année)
+    - Jointure gauche avec les données sol moyennées (par année)
+
+================================================================================
+5. MODÈLES DE PRÉDICTION
+================================================================================
+
+L'API implémente trois stratégies de prédiction du rendement, toutes
+calibrées sur des règles agronomiques réalistes :
+
+  5.1 Random Forest (Modèle de base)
+      - Calcule des contributions pondérées de chaque variable :
+          * Base : 2.5 t/ha
+          * Pluie : min(pluviometrie / 400, 1.5) × 0.8
+          * Température : +0.3 si entre 15°C et 25°C, sinon +0.1
+          * pH : +0.4 si entre 6 et 8, sinon +0.1
+          * Nutriments : (N × 10 + P / 50 + K / 200) × 0.1
+          * Correction fixe : +0.08
+      - Résultat arrondi à 2 décimales
+
+  5.2 Gradient Boosting (Modèle amélioré)
+      - Reprend le résultat Random Forest
+      - Ajoute des corrections non linéaires :
+          * +0.18 (offset de calibration)
+          * +Phosphore × 0.0012 (effet fertilisation)
+          * +(Température - 22) × 0.01 (ajustement thermique)
+      - Capture mieux les effets multiplicatifs entre variables
+
+  5.3 Stacking (Ensemble combiné)
+      - Combinaison pondérée des deux modèles :
+          * 30% × résultat Random Forest
+          * 70% × résultat Gradient Boosting
+      - Réduit la variance tout en conservant la précision GB
+
+  Qualité du rendement prédit :
+      - "low"      : rendement < 2.5 t/ha
+      - "moderate" : rendement entre 2.5 et 4.0 t/ha
+      - "good"     : rendement entre 4.0 et 6.0 t/ha
+      - "excellent": rendement > 6.0 t/ha
+
+================================================================================
+6. DÉTECTION DES ANOMALIES
+================================================================================
+
+Le système vérifie automatiquement si les valeurs saisies sont dans des
+plages agronomiquement acceptables :
+
+  Conditions d'anomalie détectées :
+    - pH hors de la plage [5.5 — 8.5]
+    - Température hors de la plage [5°C — 40°C]
+    - Humidité hors de la plage [20% — 95%]
+    - Précipitations hors de la plage [80mm — 1200mm]
+    - Rendement prédit hors de la plage [0.5 — 15 t/ha]
+
+  En cas d'anomalie, la raison précise est retournée dans la réponse API,
+  permettant à l'utilisateur de corriger ses données ou d'interpréter
+  le résultat avec prudence.
+
+================================================================================
+7. API REST — ENDPOINTS DISPONIBLES
+================================================================================
+
+L'API est construite avec FastAPI (Python) ou Plumber (R).
+Elle écoute par défaut sur : http://127.0.0.1:8000
+
+  GET  /health
+       Vérifie que le service est actif.
+       Réponse : { "status": "ok", "service": "rendement-agricole-api" }
+
+  POST /api/predict
+       Prédit le rendement agricole.
+       Corps de la requête (JSON) :
+         {
+           "model": "random_forest" | "gradient_boosting" | "stacking",
+           "features": {
+             "pluviometrie": 320,     ← Pluie en mm
+             "temperature":  21.4,    ← Température °C
+             "humidite":     64,      ← Humidité %
+             "ph":           6.9,     ← pH sol
+             "azote":        0.18,    ← Azote % massique
+             "phosphore":    42,      ← Phosphore mg/kg
+             "potassium":    165,     ← Potassium mg/kg
+             "surface":      8.5      ← Surface en hectares
+           }
+         }
+       Réponse :
+         {
+           "rendement_t_ha":   3.87,
+           "unit":             "t/ha",
+           "model":            "gradient_boosting",
+           "rendement_quality":"moderate",
+           "anomaly_detected": false,
+           "anomaly_reason":   null
+         }
+
+  POST /api/ask
+       Agent conversationnel agricole ("Terra").
+       Répond à des questions sur les cultures, le sol, la météo, etc.
+       Corps : { "question": "What is soil pH?" }
+       Réponse : { "answer": "..." }
+       - Base de connaissances locale (100+ réponses prédéfinies)
+       - Fallback vers l'API Gemini 1.5 Flash (Google) si question inconnue
+       - Limite de taux : 15 secondes entre deux appels API Gemini
+
+  POST /api/explain-yield
+       Explication en langage naturel du résultat de prédiction.
+       Corps : {
+         "predicted_yield": 3.87,
+         "model_used": "Gradient Boosting",
+         "yield_quality": "Moderate",
+         "anomaly_detected": false,
+         "anomaly_reasons": []
+       }
+       Réponse : { "answer": "Explication détaillée..." }
+
+================================================================================
+8. AGENT CONVERSATIONNEL — TERRA
+================================================================================
+
+"Terra" est l'assistant agricole intégré au projet. Il peut répondre à
+des centaines de questions sur :
+
+  - Les cultures (blé, orge, olives, tomates, dattes, raisins...)
+  - La météo et le climat (pluie, température, soleil, sécheresse, inondation)
+  - Les propriétés du sol (pH, azote, phosphore, potassium)
+  - Les pratiques agricoles (rotation des cultures, irrigation, compostage)
+  - La lutte antiparasitaire et la prévention des maladies
+  - Les engrais (organiques et chimiques)
+  - L'agriculture tunisienne et méditerranéenne
+  - Les prédictions de rendement et leur interprétation
+
+  Fonctionnement :
+    1. Vérification dans la base locale (réponse instantanée, sans API)
+    2. Correspondance par mots-clés (blé, pluie, sol, rendement...)
+    3. Si aucune correspondance → appel à l'API Gemini 1.5 Flash de Google
+       (nécessite une clé API dans la variable d'environnement GEMINI_API_KEY)
+
+================================================================================
+9. TECHNOLOGIES UTILISÉES
+================================================================================
+
+  LANGAGE PYTHON (version originale) :
+    - FastAPI          : framework API REST
+    - Pydantic         : validation des données d'entrée
+    - Pandas           : manipulation des données tabulaires
+    - NumPy            : calculs numériques et génération aléatoire
+    - Requests         : appels HTTP (FAOSTAT, Open-Meteo, Agridata)
+    - BeautifulSoup    : scraping HTML (Agridata, INM meteo.tn)
+    - google-generativeai : intégration Gemini AI
+    - python-dotenv    : gestion des variables d'environnement
+
+  LANGAGE R (version convertie) :
+    - Plumber          : framework API REST (équivalent FastAPI)
+    - httr             : appels HTTP (équivalent requests)
+    - rvest            : scraping HTML (équivalent BeautifulSoup)
+    - readr            : lecture/écriture CSV (équivalent pandas)
+    - dplyr / tidyr    : manipulation des données (équivalent pandas)
+    - readxl           : lecture des fichiers Excel
+    - jsonlite         : sérialisation JSON
+    - FactoMineR       : Analyse en Composantes Principales (ACP)
+    - factoextra       : visualisation ACP et clustering
+    - cluster          : classification (K-means, CAH)
+    - tidyverse        : collection de packages R modernes
+
+================================================================================
+10. STRUCTURE DES FICHIERS DU PROJET
+================================================================================
+
+  VigorTerra-master/
+  ├── app/                              ← Backend Python (FastAPI)
+  │   ├── main.py                       ← Point d'entrée, CORS, routeurs
+  │   └── routers/
+  │       ├── health.py                 ← Endpoint /health
+  │       ├── predict.py                ← Modèles RF, GB, Stacking
+  │       └── agent.py                  ← Agent Terra + Gemini
+  │
+  ├── agriculture_scraping/
+  │   └── scripts/
+  │       ├── main_collector.py         ← Orchestrateur collecte
+  │       ├── check_data.py             ← Vérification données
+  │       ├── scraping/
+  │       │   ├── faostat_api.py        ← Téléchargement FAOSTAT
+  │       │   ├── openmeteo_api.py      ← API météo historique
+  │       │   ├── agridata_scraper.py   ← Portail CKAN tunisien
+  │       │   ├── meteo_scraper.py      ← Site INM meteo.tn
+  │       │   └── soil_data_generator.py← Données sol synthétiques
+  │       └── preprocessing/
+  │           └── data_merger.py        ← Fusion en dataset ML
+  │
+  ├── R/                                ← Version R complète
+  │   ├── run.R                         ← Démarrage du serveur Plumber
+  │   ├── api.R                         ← API complète (predict, agent, health)
+  │   ├── main_collector.R              ← Orchestrateur collecte
+  │   ├── check_data.R                  ← Vérification données
+  │   ├── mini_projet_analyse_multivariee.R ← ACP + Clustering
+  │   ├── tmp_call_predict_rf.R         ← Test modèle Random Forest
+  │   ├── tmp_call_predict_gb.R         ← Test modèle Gradient Boosting
+  │   ├── tmp_call_predict_stacking.R   ← Test modèle Stacking
+  │   ├── scraping/
+  │   │   ├── faostat_api.R
+  │   │   ├── openmeteo_api.R
+  │   │   ├── agridata_scraper.R
+  │   │   ├── meteo_scraper.R
+  │   │   └── soil_data_generator.R
+  │   └── preprocessing/
+  │       └── data_merger.R
+  │
+  ├── tmp_call_predict.py               ← Test RF (Python)
+  ├── tmp_call_predict_gb.py            ← Test GB (Python)
+  ├── tmp_call_predict_stacking.py      ← Test Stacking (Python)
+  └── Explication.txt                   ← Ce fichier
+
+================================================================================
+11. COMMENT LANCER LE PROJET
+================================================================================
+
+  VERSION PYTHON :
+    1. Installer les dépendances :
+         pip install fastapi uvicorn pydantic requests beautifulsoup4 pandas numpy
+                     python-dotenv google-generativeai
+    2. (Optionnel) Créer un fichier .env avec :
+         GEMINI_API_KEY=votre_clé_api_google
+    3. Démarrer le serveur :
+         uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+    4. Tester une prédiction :
+         python tmp_call_predict_gb.py
+
+  VERSION R :
+    1. Installer les packages R :
+         install.packages(c("plumber", "httr", "jsonlite", "readr", "dplyr",
+                            "tidyr", "rvest", "readxl", "tidyverse",
+                            "FactoMineR", "factoextra", "cluster"))
+    2. (Optionnel) Définir la variable d'environnement :
+         Sys.setenv(GEMINI_API_KEY = "votre_clé_api_google")
+    3. Démarrer le serveur :
+         Rscript R/run.R
+    4. Tester une prédiction :
+         Rscript R/tmp_call_predict_gb.R
+
+  COLLECTE DES DONNÉES (R) :
+    - Rscript R/main_collector.R [dossier_sortie]
+
+  ANALYSE STATISTIQUE (R) :
+    - Rscript R/mini_projet_analyse_multivariee.R
+
+  API DOCS (Swagger UI) :
+    - http://127.0.0.1:8000/__docs__     (version Plumber / R)
+    - http://127.0.0.1:8000/docs         (version FastAPI / Python)
+
+================================================================================
+12. ANALYSE STATISTIQUE MULTIVARIÉE (R/mini_projet_analyse_multivariee.R)
+================================================================================
+
+  En plus de l'API de prédiction, le projet inclut une analyse statistique
+  complète du dataset agricole tunisien :
+
+  12.1 Analyse en Composantes Principales (ACP)
+       - Réduction dimensionnelle de 10 variables numériques
+       - Identification des axes principaux d'explication de la variance
+       - Visualisation : cercle de corrélation, graphe des individus,
+         éboulis des valeurs propres (scree plot)
+
+  12.2 Classification K-Means
+       - Segmentation des cultures en k=3 groupes
+       - Détermination du nombre optimal de clusters par :
+           * Méthode du coude (Within Sum of Squares)
+           * Silhouette moyenne
+       - Profils des clusters : rendement moyen, conditions climatiques,
+         famille de culture dominante (Céréales, Fruits, Légumes...)
+
+  12.3 Classification Ascendante Hiérarchique (CAH)
+       - Distance euclidienne + méthode de Ward
+       - Dendrogramme avec coupe à k=3 groupes
+       - Comparaison K-Means vs CAH (tableau de contingence)
+
+  12.4 Familles de cultures identifiées
+       - Céréales : blé dur/tendre, orge, avoine, sorgho, maïs, riz
+       - Légumineuses : pois, haricots, lentilles, pois chiches
+       - Légumes : tomates, pommes de terre, oignons, carottes, melons
+       - Fruits : pommes, raisins, oranges, dattes, figues, amandes
+       - Industrie : olives, coton, tournesol, tabac, betterave
+       - Autres : toutes cultures non classifiées
+
+================================================================================
+13. CONTEXTE TUNISIEN ET DÉFIS AGRICOLES
+================================================================================
+
+  La Tunisie est un pays méditerranéen dont l'agriculture représente un secteur
+  stratégique. Le projet VigorTerra tient compte des spécificités locales :
+
+  Atouts :
+    - Climat méditerranéen favorable (soleil abondant, températures modérées)
+    - Diversité régionale : Tell fertile au Nord, steppes centrales, Sahara Sud
+    - Cultures emblématiques : oliviers (2e exportateur mondial d'huile d'olive),
+      dattes de qualité supérieure, agriculture biologique en développement
+    - Potentiel d'exportation important vers l'Europe et le Moyen-Orient
+
+  Défis identifiés :
+    - Stress hydrique : ressources en eau limitées, pluviométrie irrégulière
+    - Érosion des sols : dégradation dans les zones de culture intensive
+    - Changement climatique : hausse des températures, sécheresses plus fréquentes
+    - Disponibilité des données : manque de données pédologiques en open data
+
+  Régions agricoles couvertes par le projet :
+    Nord   : Tunis, Bizerte, Béja, Jendouba, Nabeul
+    Centre : Sousse, Sfax, Kairouan, Le Kef
+    Sud    : Gabès, Médenine, Tozeur, Kébili
+
+================================================================================
+                              FIN DE L'EXPLICATION
+================================================================================

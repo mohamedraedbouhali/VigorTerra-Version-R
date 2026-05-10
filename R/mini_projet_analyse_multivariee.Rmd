@@ -1,0 +1,337 @@
+---
+title: "Mini-projet d'analyse multivariée - VigorTerra"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    theme: readable
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 9, fig.height = 6)
+
+library(tidyverse)
+library(FactoMineR)
+library(factoextra)
+library(cluster)
+library(ggplot2)
+
+theme_set(theme_minimal(base_size = 12))
+```
+
+# 1. Compréhension du problème
+
+Ce mini-projet traite un jeu de données agricole tunisien multidimensionnel. L'objectif est de construire une typologie interprétable à partir d'indicateurs agronomiques, climatiques et pédologiques.
+
+La problématique est la suivante: quels profils de cultures et de contextes agro-climatiques peut-on distinguer, et comment ces profils peuvent-ils aider la prise de décision agricole?
+
+Le jeu de données combine notamment:
+
+- `annee`
+- `Item` (culture)
+- `surface_cultivee_ha`
+- `production_tonnes`
+- `rendement_tonnes_ha`
+- `pluviometrie_mm`
+- `temperature_moyenne_c`
+- `humidite_pct`
+- `ph`
+- `azote_N`
+- `phosphore_P_mg_kg`
+- `potassium_K_mg_kg`
+
+```{r load-data}
+find_dataset <- function() {
+  candidates <- c(
+    "DATA/dataset_filtré.csv",
+    "DATA/dataset_ml_rendement_tunisie.csv",
+    "../DATA/dataset_filtré.csv",
+    "../DATA/dataset_ml_rendement_tunisie.csv",
+    "agriculture_scraping/data/dataset_ml_rendement_tunisie.csv",
+    "../agriculture_scraping/data/dataset_ml_rendement_tunisie.csv"
+  )
+  found <- candidates[file.exists(candidates)][1]
+  if (is.na(found) || length(found) == 0) {
+    stop("Aucun fichier dataset_ml_rendement_tunisie.csv ou dataset_filtré.csv n'a été trouvé.")
+  }
+  found
+}
+
+data_path <- find_dataset()
+df_raw <- readr::read_csv(data_path, show_col_types = FALSE)
+
+glimpse(df_raw)
+summary(df_raw)
+```
+
+# 2. Préparation des données
+
+Le choix de préparation suit trois règles: conserver la lisibilité agronomique, traiter les valeurs manquantes de façon robuste et homogénéiser les échelles avant les méthodes multivariées.
+
+```{r prep-helpers}
+core_numeric <- c(
+  "annee", "surface_cultivee_ha", "production_tonnes", "rendement_tonnes_ha",
+  "pluviometrie_mm", "temperature_moyenne_c", "humidite_pct",
+  "ph", "azote_N", "phosphore_P_mg_kg", "potassium_K_mg_kg"
+)
+
+classify_crop_family <- function(item) {
+  item <- str_to_lower(coalesce(as.character(item), ""))
+  out <- case_when(
+    str_detect(item, "wheat|barley|oats|sorghum|maize|rice|triticale|cereals|dur|tendre|orge") ~ "Cereales",
+    str_detect(item, "tomato|potato|onion|garlic|cabbage|lettuce|vegetable|melon|cucumber|pumpkin|spinach|carrot") ~ "Legumes",
+    str_detect(item, "apple|pear|grape|orange|lemon|dates|fig|apricot|peach|plum|almond|pistachio|hazelnut|fruit") ~ "Fruits",
+    str_detect(item, "olive|cotton|sunflower|sesame|linseed|oil|tobacco|sugar|beet") ~ "Industrie",
+    str_detect(item, "pea|bean|lentil|chick|pulse") ~ "Legumineuses",
+    TRUE ~ "Autres"
+  )
+  factor(out, levels = c("Cereales", "Legumineuses", "Legumes", "Fruits", "Industrie", "Autres"))
+}
+
+impute_median <- function(x) {
+  if (!is.numeric(x)) return(x)
+  x[is.na(x)] <- median(x, na.rm = TRUE)
+  x
+}
+
+cap_iqr <- function(x) {
+  if (!is.numeric(x)) return(x)
+  q1 <- quantile(x, 0.25, na.rm = TRUE)
+  q3 <- quantile(x, 0.75, na.rm = TRUE)
+  iqr <- q3 - q1
+  lower <- q1 - 1.5 * iqr
+  upper <- q3 + 1.5 * iqr
+  x <- pmax(x, lower)
+  x <- pmin(x, upper)
+  x
+}
+```
+
+```{r data-prep}
+df_prep <- df_raw %>%
+  mutate(across(any_of(core_numeric), ~ readr::parse_number(as.character(.x)))) %>%
+  mutate(
+    annee = as.integer(annee),
+    famille_culture = classify_crop_family(Item)
+  ) %>%
+  filter(!is.na(rendement_tonnes_ha)) %>%
+  filter(annee >= 2015) %>%
+  mutate(across(any_of(core_numeric), impute_median)) %>%
+  mutate(across(all_of(setdiff(core_numeric, "annee")), cap_iqr))
+
+missing_before <- df_raw %>% summarise(across(everything(), ~ sum(is.na(.x))))
+missing_after <- df_prep %>% summarise(across(everything(), ~ sum(is.na(.x))))
+
+missing_before
+missing_after
+
+df_prep %>%
+  summarise(
+    n_lignes = n(),
+    n_cultures = n_distinct(Item),
+    annee_min = min(annee),
+    annee_max = max(annee),
+    rendement_median = median(rendement_tonnes_ha),
+    rendement_sd = sd(rendement_tonnes_ha)
+  )
+```
+
+Le traitement retient les observations les plus cohérentes pour une analyse multivariée: le rendement doit être renseigné, et l'étude est recentrée sur la période 2015-2024 où les variables climatiques et pédologiques sont les plus complètes. Les valeurs manquantes restantes sont imputées par la médiane car elle est robuste aux distributions asymétriques. Les outliers sont bornés par la règle de l'IQR pour éviter qu'une poignée de valeurs extrêmes ne déforme l'ACP et la segmentation.
+
+```{r normalized-data}
+numeric_vars <- c(
+  "surface_cultivee_ha", "production_tonnes", "rendement_tonnes_ha",
+  "pluviometrie_mm", "temperature_moyenne_c", "humidite_pct",
+  "ph", "azote_N", "phosphore_P_mg_kg", "potassium_K_mg_kg"
+)
+
+df_model <- df_prep %>%
+  select(all_of(numeric_vars), annee, famille_culture, Item)
+
+df_scaled <- df_model %>%
+  select(all_of(numeric_vars)) %>%
+  scale() %>%
+  as.data.frame()
+
+summary(df_scaled)
+```
+
+# 3. Analyse factorielle obligataire: ACP
+
+L'ACP est la méthode la plus adaptée ici car les variables actives sont quantitatives. La variable `famille_culture` est conservée comme variable qualitative supplémentaire pour la lecture des profils.
+
+```{r pca}
+pca_input <- df_model %>%
+  select(all_of(numeric_vars), annee, famille_culture)
+
+res_pca <- PCA(
+  pca_input,
+  scale.unit = TRUE,
+  ncp = 5,
+  graph = FALSE,
+  quanti.sup = length(numeric_vars) + 1,
+  quali.sup = length(numeric_vars) + 2
+)
+
+res_pca$eig
+```
+
+```{r pca-plots}
+fviz_eig(res_pca, addlabels = TRUE, ylim = c(0, 100))
+```
+
+Les résultats à commenter dans la soutenance sont:
+
+- la part de variance expliquée par les premiers axes,
+- les variables qui construisent principalement l'axe 1 et l'axe 2,
+- les contributions des variables aux dimensions,
+- la proximité entre observations semblables sur le plan factoriel.
+
+```{r pca-contrib}
+fviz_contrib(res_pca, choice = "var", axes = 1, top = 10)
+fviz_contrib(res_pca, choice = "var", axes = 2, top = 10)
+```
+
+```{r pca-individuals}
+fviz_pca_ind(
+  res_pca,
+  repel = TRUE,
+  habillage = df_model$famille_culture,
+  addEllipses = TRUE,
+  palette = "Dark2"
+)
+```
+
+```{r pca-variables}
+fviz_pca_var(res_pca, col.var = "contrib", gradient.cols = c("#2c7bb6", "#ffffbf", "#d7191c"))
+```
+
+# 4. Classification obligatoire: K-means et CAH
+
+La segmentation est réalisée sur les coordonnées factorielles de l'ACP. Ce choix réduit la redondance des variables et améliore la stabilité des classes. K-means est utilisé comme segmentation principale, tandis que la CAH sert de contrôle de cohérence.
+
+```{r clustering-setup}
+pca_scores <- as.data.frame(res_pca$ind$coord[, 1:3, drop = FALSE])
+colnames(pca_scores) <- c("Dim1", "Dim2", "Dim3")
+
+set.seed(42)
+```
+
+```{r choose-k}
+fviz_nbclust(pca_scores, kmeans, method = "wss")
+fviz_nbclust(pca_scores, kmeans, method = "silhouette")
+```
+
+```{r kmeans-final}
+k_final <- 3
+km_res <- kmeans(pca_scores, centers = k_final, nstart = 50)
+df_model$cluster_km <- factor(km_res$cluster)
+
+km_res$centers
+```
+
+```{r kmeans-profiles}
+profil_km <- df_model %>%
+  mutate(cluster_km = factor(km_res$cluster)) %>%
+  group_by(cluster_km) %>%
+  summarise(
+    n = n(),
+    across(all_of(numeric_vars), ~ mean(.x, na.rm = TRUE)),
+    .groups = "drop"
+  )
+
+profil_km
+```
+
+```{r kmeans-plot}
+fviz_cluster(km_res, data = pca_scores, geom = "point", ellipse.type = "norm")
+```
+
+```{r cah}
+cah_dist <- dist(scale(pca_scores))
+cah_res <- hclust(cah_dist, method = "ward.D2")
+
+fviz_dend(cah_res, k = k_final, rect = TRUE, cex = 0.7)
+
+df_model$cluster_cah <- factor(cutree(cah_res, k = k_final))
+```
+
+La CAH permet de vérifier si la structure hiérarchique est compatible avec le découpage de K-means. Si les groupes se recouvrent peu et restent cohérents sur le plan factoriel, la typologie est considérée comme stable.
+
+# 5. Analyse combinée: lien ACP - segmentation
+
+L'intérêt principal est de montrer que les clusters ne sont pas arbitraires: ils occupent des zones distinctes de l'espace factoriel.
+
+```{r combined-analysis}
+# Créer le dataframe clustérisé en ajoutant directement les clusters et scores PCA
+df_clustered <- df_model %>%
+  mutate(
+    Dim1 = pca_scores$Dim1,
+    Dim2 = pca_scores$Dim2,
+    Dim3 = pca_scores$Dim3,
+    cluster_km = factor(km_res$cluster),
+    cluster_cah = factor(cutree(cah_res, k = k_final))
+  )
+
+cluster_pca_summary <- df_clustered %>%
+  group_by(cluster_km) %>%
+  summarise(
+    across(c(Dim1, Dim2, Dim3), mean),
+    .groups = "drop"
+  )
+
+cluster_profile <- df_clustered %>%
+  group_by(cluster_km) %>%
+  summarise(
+    n = n(),
+    part_fruits = mean(famille_culture == "Fruits"),
+    part_cereales = mean(famille_culture == "Cereales"),
+    part_legumes = mean(famille_culture == "Legumes"),
+    rendement_moyen = mean(rendement_tonnes_ha),
+    pluie_moyenne = mean(pluviometrie_mm),
+    temperature_moyenne = mean(temperature_moyenne_c),
+    humidite_moyenne = mean(humidite_pct),
+    .groups = "drop"
+  )
+
+cluster_pca_summary
+cluster_profile
+table(df_clustered$cluster_km, df_clustered$cluster_cah)
+```
+
+```{r combined-plot}
+fviz_pca_ind(
+  res_pca,
+  repel = TRUE,
+  habillage = df_clustered$cluster_km,
+  addEllipses = TRUE,
+  palette = "Set1"
+)
+```
+
+# 6. Interprétation et conclusions décisionnelles
+
+L'interprétation doit relier les axes factoriels aux clusters:
+
+- un profil peut représenter des cultures à forte surface et production, associées à un contexte climatique plus favorable;
+- un autre profil peut correspondre à des cultures plus intensives mais sur des surfaces faibles et avec rendement élevé;
+- un troisième profil peut refléter des zones plus sèches ou plus contraintes, où la productivité dépend davantage de l'irrigation, du sol ou du type de culture.
+
+Dans une soutenance, il faut commenter les résultats comme suit:
+
+1. Décrire le sens de l'axe 1 et de l'axe 2 à partir des contributions des variables.
+2. Relier chaque cluster à des variables dominantes: rendement, pluie, température, humidité, pH, N, P, K.
+3. Expliquer quels profils sont les plus favorables à une action de conseil agricole.
+4. Montrer l'intérêt métier: mieux cibler les cultures, ajuster les intrants, prioriser les zones à risque et optimiser l'allocation des ressources.
+
+## Conclusion synthétique
+
+Cette version du projet remplit les exigences du mini-projet multivarié:
+
+- préparation des données avec justification méthodologique,
+- ACP pour réduire la dimension et interpréter la structure,
+- K-means et CAH pour construire et valider une typologie,
+- lecture métier des profils obtenus pour guider la décision.
+
+Le fichier source à exécuter ou à rendre est ce document RMarkdown. Il peut être knitté en HTML pour produire un rapport de soutenance.

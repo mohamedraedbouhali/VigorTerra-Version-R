@@ -1,0 +1,25 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:8000
+    image: vigorterra-frontend:latest
+    container_name: vigorterra_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: .
+      dockerfile: R/Dockerfile
+    image: vigorterra-backend-r:latest
+    container_name: vigorterra_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    restart: unless-stopped

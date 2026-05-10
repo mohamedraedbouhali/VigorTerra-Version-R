@@ -1,0 +1,150 @@
+.hero {
+  padding: 6rem 1.5rem 5.5rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 120% 80% at 50% -10%, rgba(78, 184, 122, 0.18) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 70%, rgba(126, 184, 201, 0.06) 0%, transparent 45%),
+    linear-gradient(180deg, var(--surface-light) 0%, var(--surface) 40%, transparent 100%);
+}
+
+/* Decorative organic blob */
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 10%;
+  right: 5%;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(78, 184, 122, 0.12) 0%, transparent 70%);
+  border-radius: 60% 40% 50% 50% / 50% 60% 40% 50%;
+  filter: blur(40px);
+  pointer-events: none;
+  animation: blobMorph 12s ease-in-out infinite;
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  bottom: 15%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(78, 184, 122, 0.2), rgba(91, 168, 154, 0.2), transparent);
+  pointer-events: none;
+}
+
+@keyframes blobMorph {
+  0%, 100% { border-radius: 60% 40% 50% 50% / 50% 60% 40% 50%; transform: scale(1); }
+  50% { border-radius: 40% 60% 50% 50% / 60% 40% 60% 40%; transform: scale(1.1); }
+}
+
+@keyframes heroFadeIn {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hero-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+  animation: heroFadeIn 1s var(--ease-out, ease-out) both;
+}
+
+.hero-title {
+  font-size: clamp(2.2rem, 5.5vw, 3.5rem);
+  font-weight: 800;
+  margin: 0 0 1.25rem;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, var(--green-vibrant) 0%, var(--green-glow) 40%, var(--accent-teal) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 30px rgba(78, 184, 122, 0.2));
+  animation: titleGlow 4s ease-in-out infinite alternate;
+}
+
+.hero-title::after {
+  content: '';
+  display: block;
+  width: 80px;
+  height: 4px;
+  margin: 1.5rem auto 0;
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, var(--green-vibrant), var(--accent-teal));
+  opacity: 0.9;
+  box-shadow: 0 0 12px rgba(78, 184, 122, 0.4);
+}
+
+@keyframes titleGlow {
+  0% { filter: drop-shadow(0 0 30px rgba(78, 184, 122, 0.2)) brightness(1); }
+  100% { filter: drop-shadow(0 0 40px rgba(78, 184, 122, 0.3)) brightness(1.08); }
+}
+
+.hero-subtitle {
+  font-size: 1.3rem;
+  color: var(--green-vibrant);
+  margin: 0 0 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 20px rgba(78, 184, 122, 0.15);
+}
+
+.hero-desc {
+  color: var(--text-muted);
+  font-size: 1rem;
+  margin: 0 0 2rem;
+  line-height: 1.6;
+}
+
+.hero-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.badge {
+  background: linear-gradient(135deg, rgba(26, 77, 50, 0.9), rgba(45, 107, 71, 0.85));
+  color: var(--green-pale);
+  padding: 0.55rem 1.15rem;
+  border-radius: var(--radius-full);
+  font-size: 0.88rem;
+  font-weight: 600;
+  border: 1px solid rgba(78, 184, 122, 0.35);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.badge::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+  transition: left 0.6s;
+}
+
+.badge:hover {
+  transform: translateY(-3px) scale(1.03);
+  border-color: var(--green-vibrant);
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.3),
+    0 0 24px rgba(78, 184, 122, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.badge:hover::before {
+  left: 100%;
+}

@@ -1,0 +1,1 @@
+{ "projectId": "a4d25135-8ae1-4691-bad4-659d11c97745", "createdAt": 1772314571289, "startupCommands": ["npm install; Start-Process py -ArgumentList '-m uvicorn app.main:app --host 127.0.0.1 --port 8000 --app-dir .'; npm run dev"], "templateId": "any" }

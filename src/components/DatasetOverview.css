@@ -1,0 +1,106 @@
+.section-alt {
+  background:
+    radial-gradient(ellipse at top left, rgba(126, 184, 201, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(78, 184, 122, 0.06) 0%, transparent 50%),
+    linear-gradient(180deg, var(--surface-light) 0%, var(--surface) 50%, var(--bg) 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.section-alt::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(circle at 30% 70%, rgba(91, 168, 154, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 70% 30%, rgba(78, 184, 122, 0.04) 0%, transparent 40%);
+  pointer-events: none;
+}
+
+.variables-table-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  margin-bottom: 1.25rem;
+  box-shadow: var(--shadow-md);
+  background: rgba(255, 255, 255, 0.88);
+  animation: cardFadeIn 0.5s var(--ease-out, ease-out) both;
+}
+
+.variables-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.variables-table th,
+.variables-table td {
+  padding: 0.85rem 1.1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.variables-table th {
+  background: linear-gradient(90deg, rgba(78, 184, 122, 0.18), rgba(26, 77, 50, 0.08));
+  color: var(--green-pale);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.variables-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.variables-table tbody tr {
+  transition: var(--transition);
+}
+
+.variables-table tbody tr:nth-child(even) {
+  background: rgba(26, 77, 50, 0.04);
+}
+
+.variables-table tbody tr:hover {
+  background: rgba(78, 184, 122, 0.1);
+}
+
+.variables-table code {
+  background: linear-gradient(135deg, #eef7f1, #e5f2e9);
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85em;
+  border: 1px solid var(--border);
+  color: var(--green-deep);
+  font-weight: 700;
+}
+
+.dataset-note {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.dataset-note code {
+  background: linear-gradient(135deg, var(--surface-light), rgba(26, 77, 50, 0.1));
+  padding: 0.25rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  color: var(--green-vibrant);
+  font-weight: 600;
+}
+
+@media (max-width: 700px) {
+  .variables-table th,
+  .variables-table td {
+    padding: 0.7rem 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  .variables-table code {
+    padding: 0.22rem 0.48rem;
+  }
+}
