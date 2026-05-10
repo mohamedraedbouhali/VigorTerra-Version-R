@@ -1,0 +1,170 @@
+================================================================================
+                    VIGORTERRA — HOW TO START MY PROJECT
+================================================================================
+
+IMPORTANT NOTE :
+  The prediction system has TWO parts that must both run at the same time :
+    1. The BACKEND  (API server — handles predictions)
+    2. The FRONTEND (React interface — what the user sees in the browser)
+
+  Start the backend FIRST, then the frontend.
+
+================================================================================
+STEP 1 — START THE BACKEND (API)
+================================================================================
+
+  You have two options. Choose ONE (not both at the same time).
+
+  ─────────────────────────────────────────────────────────────────────────────
+  OPTION A : Python / FastAPI  (Recommended — already installed)
+  ─────────────────────────────────────────────────────────────────────────────
+
+  Open a terminal (PowerShell or CMD) in the project folder and run :
+
+    [Only the first time — install dependencies]
+      cd app
+      pip install -r requirements.txt
+      cd ..
+
+    [Every time — start the server]
+      uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+
+  When it works you will see this message in the terminal :
+      INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+
+  The API is now available at :
+      http://127.0.0.1:8000
+
+  ─────────────────────────────────────────────────────────────────────────────
+  OPTION B : R / Plumber  (Alternative — converted version)
+  ─────────────────────────────────────────────────────────────────────────────
+
+  Open R or RStudio and run :
+
+    [Only the first time — install packages]
+      install.packages(c("plumber", "httr", "jsonlite"))
+
+    [Every time — start the server]
+      source("R/run.R")
+
+  OR from a terminal (PowerShell) :
+      Rscript R/run.R
+
+  The API is now available at :
+      http://127.0.0.1:8000
+
+================================================================================
+STEP 2 — START THE FRONTEND (React Interface)
+================================================================================
+
+  Open a SECOND terminal (keep the backend terminal running).
+  Go to the project folder and run :
+
+    [Only the first time — install dependencies]
+      npm install
+
+    [Every time — start the interface]
+      npm run dev
+
+  When it works you will see :
+      Local :   http://localhost:3000
+
+  Open your browser and go to :
+      http://localhost:3000
+
+  The full prediction system is now active and ready to use.
+
+================================================================================
+STEP 3 — VERIFY EVERYTHING WORKS (Optional)
+================================================================================
+
+  While the backend is running, open a third terminal and test a prediction :
+
+    Using Python :
+      python tmp_call_predict_gb.py
+
+    Using R :
+      Rscript R/tmp_call_predict_gb.R
+
+  You should receive this response :
+      {
+        "rendement_t_ha": 3.93,
+        "unit": "t/ha",
+        "model": "gradient_boosting",
+        "rendement_quality": "moderate",
+        "anomaly_detected": false,
+        "anomaly_reason": null
+      }
+
+  If you see this, the prediction system is working correctly.
+
+================================================================================
+API DOCUMENTATION (Swagger UI)
+================================================================================
+
+  While the backend is running, open your browser and go to :
+
+    Python version :   http://127.0.0.1:8000/docs
+    R version      :   http://127.0.0.1:8000/__docs__
+
+  You can test all the API endpoints directly from the browser.
+
+================================================================================
+GEMINI API KEY (Optional — only needed for the AI chat agent)
+================================================================================
+
+  The prediction system works WITHOUT a Gemini key.
+  The key is only needed if you want the AI assistant "Terra" to answer
+  questions that are not in its local knowledge base.
+
+  To configure it :
+    1. Create a file named  .env  in the project root folder
+    2. Add this line inside :
+         GEMINI_API_KEY=your_key_here
+    3. Get a free key at : https://aistudio.google.com/app/apikeys
+    4. Restart the backend
+
+================================================================================
+SUMMARY TABLE
+================================================================================
+
+  What to start         Command                                        Port
+  ─────────────────     ────────────────────────────────────────────   ──────
+  Backend (Python)      uvicorn app.main:app --port 8000 --reload      8000
+  Backend (R)           Rscript R/run.R                                8000
+  Frontend (React)      npm run dev                                    3000
+
+  ─────────────────     ────────────────────────────────────────────   ──────
+  Test RF model         python tmp_call_predict.py                     —
+  Test GB model         python tmp_call_predict_gb.py                  —
+  Test Stacking model   python tmp_call_predict_stacking.py            —
+
+  ─────────────────     ────────────────────────────────────────────   ──────
+  API docs (Python)     http://127.0.0.1:8000/docs                     —
+  API docs (R)          http://127.0.0.1:8000/__docs__                 —
+  Frontend URL          http://localhost:3000                           —
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+  PROBLEM : "uvicorn is not recognized"
+  SOLUTION: Install it with :  pip install uvicorn
+
+  PROBLEM : "npm is not recognized"
+  SOLUTION: Install Node.js from https://nodejs.org
+
+  PROBLEM : Port 8000 already in use
+  SOLUTION: Change the port :  uvicorn app.main:app --port 8001 --reload
+            Then update vite.config.js proxy target to port 8001
+
+  PROBLEM : Frontend shows "Cannot connect to API"
+  SOLUTION: Make sure the backend is running first on port 8000
+
+  PROBLEM : Gemini agent returns "API key not configured"
+  SOLUTION: Add your key to the .env file (see section above)
+            The prediction system still works without it
+
+================================================================================
+                               END OF FILE
+================================================================================
