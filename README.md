@@ -5,14 +5,14 @@
 
 ### *Precision Agriculture & Yield Prediction Engine for Tunisia*
 
-[![R](https://img.shields.io/badge/R-4.4+-276DC3?style=for-the-badge&logo=r&logoColor=white)](https://www.r-project.org/)
+[![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org)
-[![Plumber](https://img.shields.io/badge/Plumber-2C3E50?style=for-the-badge)](https://www.rplumber.io/)
-[![JSONLite](https://img.shields.io/badge/JSONLite-4B8BBE?style=for-the-badge)](https://cran.r-project.org/package=jsonlite)
+[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
+[![Scikit-Learn](https://img.shields.io/badge/Scikit--Learn-F7931E?style=for-the-badge&logo=scikit-learn&logoColor=white)](https://scikit-learn.org)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com)
 [![MLflow](https://img.shields.io/badge/MLflow-0194E2?style=for-the-badge&logo=mlflow&logoColor=white)](https://mlflow.org)
 
-**VigorTerra** is an end-to-end agricultural analytics system for Tunisian precision agriculture. The platform combines real-time climate data with soil analytics to deliver intelligent prediction services, with the public API now served from R so the frontend keeps the same `/api/predict` contract.
+**VigorTerra** is an end-to-end Machine Learning system for Tunisian precision agriculture. The platform combines real-time climate data with soil analytics to deliver three intelligent prediction services: **yield forecasting**, **disease risk assessment**, and **productivity classification**.
 
 [Explore Models](#-machine-learning-pipeline) • [View Architecture](#-ml-pipeline-architecture) • [Quick Start](#-deployment) • [Data Sources](#-data-ecosystem)
 
@@ -85,7 +85,7 @@ VigorTerra implements a production-grade Machine Learning pipeline following ind
 ┌─────────────────────────────────────────────────────────────────┐
 │                    DATA ACQUISITION LAYER                       │
 ├─────────────────────────────────────────────────────────────────┤
-│  Web Scraping (Python collectors) + API Integration (Open-Meteo) │
+│  Web Scraping (BeautifulSoup) + API Integration (Open-Meteo)   │
 │  → Raw CSV Storage → Data Validation (Great Expectations)      │
 └──────────────────────┬──────────────────────────────────────────┘
                        ↓
@@ -115,7 +115,7 @@ VigorTerra implements a production-grade Machine Learning pipeline following ind
 ┌─────────────────────────────────────────────────────────────────┐
 │                  DEPLOYMENT LAYER                               │
 ├─────────────────────────────────────────────────────────────────┤
-│  R Plumber Backend (REST endpoints) + React Frontend            │
+│  FastAPI Backend (REST endpoints) + React Frontend              │
 │  → Docker Compose Orchestration → CI/CD (GitHub Actions)        │
 └─────────────────────────────────────────────────────────────────┘
 ```

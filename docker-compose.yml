@@ -15,11 +15,12 @@ services:
   backend:
     build:
       context: .
-      dockerfile: R/Dockerfile
-    image: vigorterra-backend-r:latest
+      dockerfile: app/Dockerfile
+    image: vigorterra-backend:latest
     container_name: vigorterra_backend
     ports:
       - "8000:8000"
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - PYTHONUNBUFFERED=1
     restart: unless-stopped
