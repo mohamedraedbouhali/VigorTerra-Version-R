@@ -31,6 +31,9 @@ export default function Header() {
           <Link to="/askme" className={location.pathname === '/askme' ? 'nav-link active' : 'nav-link'}>
             {t('nav.askme', 'Ask Me!')}
           </Link>
+          <Link to="/dashboard" className={location.pathname === '/dashboard' ? 'nav-link active' : 'nav-link'}>
+            {t('nav.dashboard', 'Dashboard')}
+          </Link>
           {user ? (
             <>
               <Link to="/profile" className={location.pathname === '/profile' ? 'nav-link active' : 'nav-link'}>

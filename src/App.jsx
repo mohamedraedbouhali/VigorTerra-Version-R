@@ -10,6 +10,7 @@ import DatasetPage from './pages/DatasetPage'
 import PipelinePage from './pages/PipelinePage'
 import TestPage from './pages/TestPage'
 import AskMePage from './pages/AskMePage'
+import DashboardPage from './pages/DashboardPage'
 import './components/shared.css'
 
 function App() {
@@ -72,6 +73,14 @@ function App() {
           element={
             <ProtectedRoute>
               <AskMePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
             </ProtectedRoute>
           }
         />
